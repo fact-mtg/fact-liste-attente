@@ -46,7 +46,7 @@ CRON_SECRET = os.getenv("CRON_SECRET")
 EQUIPE = os.getenv("EQUIPE")
 
 app = Flask(__name__)
-app.config['SERVER_NAME'] = 'localhost:5000' if LOCAL_TEST else 'fact-liste-attente.onrender.com'
+app.config['SERVER_NAME'] = 'localhost:5000' if LOCAL_TEST else 'fact-mtg-liste-attente.onrender.com'
 app.config['PREFERRED_URL_SCHEME'] = 'https'
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///event.db' if LOCAL_TEST else os.getenv('DATABASE_URL')
