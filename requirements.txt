@@ -1,0 +1,6 @@
+flask
+gunicorn
+flask_limiter
+flask_sqlalchemy
+pytz
+requests

@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Panneau d'administration</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+</head>
+<body class="bg-light">
+<a href="{{ url_for('home') }}" class="btn btn-sm btn-outline-primary position-absolute m-3" style="top: 0; left: 0; z-index: 1030;">
+    Retour à l'accueil
+</a>
+  <div class="container pt-4 my-5">
+    <div class="text-center mb-5">
+    <h1 class="display-4">Administration</h1>
+    </div>
+    
+    <!-- Création d'un évènement -->
+    <form action="{{ url_for('init_participants') }}" method="post" enctype="multipart/form-data" class="card p-4 mb-5 shadow-sm mx-auto" style="max-width: 480px;">
+      <h2 class="h4 mb-3">Créer un nouvel évènement</h2>
+
+      <div class="mb-3">
+        <label for="nom_evenement" class="form-label">Nom évènement</label>
+        <input type="text" id="nom_evenement" name="nom_evenement" required class="form-control" />
+      </div>
+
+      <div class="mb-3">
+        <label for="date_evenement" class="form-label">Date</label>
+        <input type="date" id="date_evenement" name="date_evenement" required class="form-control" />
+      </div>
+
+      <div class="mb-4">
+        <label for="csvfile" class="form-label">Importer participants (CSV)</label>
+        <input type="file" id="csvfile" name="csvfile" accept=".csv" required class="form-control" />
+      </div>
+
+      <button type="submit" class="btn btn-primary w-100">
+        Créer évènement
+      </button>
+    </form>
+
+    <!-- Gestion du statut actif/inactif -->
+    <section class="card p-4 mb-5 shadow-sm mx-auto" style="max-width: 480px;">
+      <h2 class="h4 mb-4">Gérer l’état des évènements</h2>
+
+      {% for event in events|sort(attribute='date') %}
+      <form action="{{ url_for('toggle_event_status') }}" method="post" class="d-flex align-items-center justify-content-between mb-3 gap-2">
+        <input type="hidden" name="event_name" value="{{ event.name }}" />
+
+        <span class="flex-grow-1 fw-semibold text-truncate" title="{{ event.name }}">{{ event.name }}</span>
+
+        <button type="submit" class="badge {{ 'bg-success' if event.active else 'bg-danger' }} mx-3 text-nowrap">
+          {{ 'Ouvert' if event.active else 'Fermé' }}
+        </button>
+      </form>
+      {% endfor %}
+    </section>
+
+    <!-- Export des données ZIP -->
+    <form action="{{ url_for('export_zip') }}" method="post" class="card p-4 shadow-sm mx-auto" style="max-width: 480px;">
+      <h2 class="h4 mb-3">Télécharger les données</h2>
+
+      <div class="mb-4">
+        <label for="nom_evenement" class="form-label">Sélectionner un évènement</label>
+        <select id="nom_evenement" name="nom_evenement" required class="form-select">
+          {% for event in events|sort(attribute='date') %}
+          <option value="{{ event.name }}">{{ event.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <button type="submit" class="btn btn-success w-100">
+        Télécharger
+      </button>
+    </form>
+  </div>
+</body>
+</html>
