@@ -8,7 +8,7 @@ from email.mime.text import MIMEText
 from datetime import datetime, timezone
 from pytz import timezone, utc
 from functools import wraps
-from sqlalchemy import MetaData, delete
+from sqlalchemy import MetaData, text
 from enum import Enum
 from urllib.parse import unquote
 
@@ -76,9 +76,6 @@ class Event(db.Model):
     name = db.Column(db.String(100), unique=True, nullable=False)
     date = db.Column(db.Date, nullable=False)
     active = db.Column(db.Boolean, default=False)
-
-    utilisateurs = db.relationship('Utilisateur', backref='event', cascade="all, delete-orphan")
-    places_liberees = db.relationship('PlacesLiberees', backref='event', cascade="all, delete-orphan")
     
 class Utilisateur(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -92,10 +89,6 @@ class Utilisateur(db.Model):
     table_args__ = (
         db.UniqueConstraint('email', 'event_id', name='uq_email_event'),
     )
-
-    participants = db.relationship('Participant', backref='utilisateur', cascade="all, delete-orphan")
-    notifications = db.relationship('Notification', backref='utilisateur', cascade="all, delete-orphan")
-    attentes = db.relationship('Attente', backref='utilisateur', cascade="all, delete-orphan")
 
 class Participant(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -759,7 +752,10 @@ def init_participants():
         db.session.add_all(participants_to_add)
         db.session.commit()
 
-        return render_template("message.html", prenom="", message=f"L'évènement \"{event.name}\" a été créé avec {count} participants.")
+        print("L'évènement \"{event.name}\" a été créé avec {count} participants.")
+
+        return redirect(url_for('admin_panel'))
+
 
     except Exception as e:
         db.session.rollback()
@@ -777,24 +773,49 @@ def toggle_event_status():
         event.active = not event.active
         db.session.commit()
 
-    return redirect(url_for('admin_panel'))  # ou autre page d’admin
+    return redirect(url_for('admin_panel'))
 
 
 @app.route('/delete_event/<int:event_id>', methods=['POST'])
 @requires_auth
 def delete_event(event_id):
+    today = datetime.now(PARIS_TZ).date()
+    
     event = Event.query.get(event_id)
     if not event:
-        return render_template("message.html", prenom="", message="L'évènement n'existe pas.")
-    
-    today = datetime.now(PARIS_TZ).date()
-    if today <= event.date or event.active:
-        return render_template("message.html", prenom="", message="Impossible de supprimer un évènement actif ou avant la date de l'évènement.")
-    
-    db.session.delete(event)
+        return render_template("message.html", message="Événement introuvable.")
+
+    if event.active or event.date >= today:
+        return render_template("message.html", message="Impossible de supprimer un évènement actif ou avant la date de l'évènement.")
+
+    # Suppression directe SQL (sans charger les objets en mémoire)
+    db.session.execute(text("""
+        DELETE FROM participant WHERE utilisateur_id IN (SELECT id FROM utilisateur WHERE event_id = :eid);
+    """), {'eid': event_id})
+
+    db.session.execute(text("""
+        DELETE FROM notification WHERE utilisateur_id IN (SELECT id FROM utilisateur WHERE event_id = :eid);
+    """), {'eid': event_id})
+
+    db.session.execute(text("""
+        DELETE FROM attente WHERE utilisateur_id IN (SELECT id FROM utilisateur WHERE event_id = :eid);
+    """), {'eid': event_id})
+
+    db.session.execute(text("""
+        DELETE FROM utilisateur WHERE event_id = :eid;
+    """), {'eid': event_id})
+
+    db.session.execute(text("""
+        DELETE FROM places_liberees WHERE event_id = :eid;
+    """), {'eid': event_id})
+
+    db.session.execute(text("""
+        DELETE FROM event WHERE id = :eid;
+    """), {'eid': event_id})
+
     db.session.commit()
 
-    return render_template("message.html", prenom="", message=f"L'évènement \"{event.name}\" a été supprimé de la base de donées.")
+    return redirect(url_for('admin_panel'))
 
 
 @app.route('/export_zip', methods=['POST'])
