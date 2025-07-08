@@ -642,7 +642,26 @@ def confirm_action(token):
 def admin_panel():
     events = Event.query.all()
     today = datetime.now(PARIS_TZ).date()
-    return render_template("admin.html", events=events, today=today)
+
+    stats = {}
+
+    for event in events:
+        participant_count = db.session.query(Participant).join(Utilisateur).filter(Utilisateur.event_id == event.id).count()
+        attente_count = db.session.query(Attente).join(Utilisateur).filter(Utilisateur.event_id == event.id).count()
+        pending_notif_count = db.session.query(Notification).join(Utilisateur).filter(
+            Utilisateur.event_id == event.id,
+            Notification.status == NotificationStatus.PENDING.value
+        ).count()
+        places_liberees_count = db.session.query(PlacesLiberees).filter_by(event_id=event.id).count()
+
+        stats[event.id] = {
+            'participants': participant_count,
+            'attente': attente_count,
+            'notifications': pending_notif_count,
+            'places': places_liberees_count
+        }
+
+    return render_template("admin.html", events=events, stats=stats, today=today)
 
     
 @app.route('/init_participants', methods=['POST'])
