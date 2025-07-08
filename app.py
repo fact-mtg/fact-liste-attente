@@ -77,6 +77,9 @@ class Event(db.Model):
     date = db.Column(db.Date, nullable=False)
     active = db.Column(db.Boolean, default=False)
 
+    utilisateurs = db.relationship('Utilisateur', backref='event', cascade="all, delete-orphan")
+    places_liberees = db.relationship('PlacesLiberees', backref='event', cascade="all, delete-orphan")
+    
 class Utilisateur(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(120), nullable=False)
@@ -90,24 +93,25 @@ class Utilisateur(db.Model):
         db.UniqueConstraint('email', 'event_id', name='uq_email_event'),
     )
 
+    participants = db.relationship('Participant', backref='utilisateur', cascade="all, delete-orphan")
+    notifications = db.relationship('Notification', backref='utilisateur', cascade="all, delete-orphan")
+    attentes = db.relationship('Attente', backref='utilisateur', cascade="all, delete-orphan")
+
 class Participant(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     utilisateur_id = db.Column(db.Integer, db.ForeignKey('utilisateur.id'), nullable=False)
     inscription_date = db.Column(db.DateTime, default=lambda:datetime.now(PARIS_TZ))
-    utilisateur = db.relationship('Utilisateur', backref='participants')
     
 class Attente(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     utilisateur_id = db.Column(db.Integer, db.ForeignKey('utilisateur.id'), nullable=False)
     contacted = db.Column(db.Boolean, default=False)
     inscription_date = db.Column(db.DateTime, default=lambda:datetime.now(PARIS_TZ))
-    utilisateur = db.relationship('Utilisateur', backref='attentes')
     
 class NotificationStatus(Enum):
     PENDING = "pending"
     RESPONDED = "responded"
     EXPIRED = "expired"
-
     
 class Notification(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -116,7 +120,6 @@ class Notification(db.Model):
     expires_at = db.Column(db.DateTime, nullable=False)
     status = db.Column(db.String(20), default=NotificationStatus.PENDING.value, nullable=False)
     processed_at = db.Column(db.DateTime, nullable=True)
-    utilisateur = db.relationship('Utilisateur', backref='notifications')
     
 class PlacesLiberees(db.Model):
     event_id = db.Column(db.Integer, db.ForeignKey('event.id'), primary_key=True)
@@ -645,7 +648,8 @@ def confirm_action(token):
 @requires_auth
 def admin_panel():
     events = Event.query.all()
-    return render_template("admin.html", events=events)
+    today = datetime.now(PARIS_TZ).date()
+    return render_template("admin.html", events=events, today=today)
 
     
 @app.route('/init_participants', methods=['POST'])
@@ -774,6 +778,23 @@ def toggle_event_status():
         db.session.commit()
 
     return redirect(url_for('admin_panel'))  # ou autre page d’admin
+
+
+@app.route('/delete_event/<int:event_id>', methods=['POST'])
+@requires_auth
+def delete_event(event_id):
+    event = Event.query.get(event_id)
+    if not event:
+        return render_template("message.html", prenom="", message="L'évènement n'existe pas.")
+    
+    today = datetime.now(PARIS_TZ).date()
+    if today <= event.date or event.active:
+        return render_template("message.html", prenom="", message="Impossible de supprimer un évènement actif ou avant la date de l'évènement.")
+    
+    db.session.delete(event)
+    db.session.commit()
+
+    return render_template("message.html", prenom="", message=f"L'évènement \"{event.name}\" a été supprimé de la base de donées.")
 
 
 @app.route('/export_zip', methods=['POST'])

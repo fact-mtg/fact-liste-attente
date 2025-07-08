@@ -113,24 +113,29 @@
   });
 </script>
 
+<section class="card p-4 mb-5 shadow-sm mx-auto" style="max-width: 480px;">
+  <h2 class="h4 mb-4">Gérer l’état des évènements</h2>
 
+  {% for event in events|sort(attribute='date') %}
+  <div class="d-flex align-items-center justify-content-between mb-3 gap-2">
+    <form action="{{ url_for('toggle_event_status') }}" method="post" class="d-flex flex-grow-1 align-items-center gap-2">
+      <input type="hidden" name="event_name" value="{{ event.name }}" />
 
-    <!-- Gestion du statut actif/inactif -->
-    <section class="card p-4 mb-5 shadow-sm mx-auto" style="max-width: 480px;">
-      <h2 class="h4 mb-4">Gérer l’état des évènements</h2>
+      <span class="flex-grow-1 fw-semibold text-truncate" title="{{ event.name }}">{{ event.name }}</span>
 
-      {% for event in events|sort(attribute='date') %}
-      <form action="{{ url_for('toggle_event_status') }}" method="post" class="d-flex align-items-center justify-content-between mb-3 gap-2">
-        <input type="hidden" name="event_name" value="{{ event.name }}" />
+      <button type="submit" class="badge {{ 'bg-success' if event.active else 'bg-danger' }} mx-2 text-nowrap">
+        {{ 'Ouvert' if event.active else 'Fermé' }}
+      </button>
+    </form>
 
-        <span class="flex-grow-1 fw-semibold text-truncate" title="{{ event.name }}">{{ event.name }}</span>
-
-        <button type="submit" class="badge {{ 'bg-success' if event.active else 'bg-danger' }} mx-3 text-nowrap">
-          {{ 'Ouvert' if event.active else 'Fermé' }}
-        </button>
-      </form>
-      {% endfor %}
-    </section>
+    {% if not event.active and event.date < today %}
+    <form action="{{ url_for('delete_event', event_id=event.id) }}" method="post" onsubmit="return confirm('Confirmer la suppression de l’évènement ?');">
+      <button type="submit" class="btn btn-sm btn-outline-danger">Supprimer</button>
+    </form>
+    {% endif %}
+  </div>
+  {% endfor %}
+</section>
 
     <!-- Export des données ZIP -->
     <form action="{{ url_for('export_zip') }}" method="post" class="card p-4 shadow-sm mx-auto" style="max-width: 480px;">
