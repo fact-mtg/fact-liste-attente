@@ -4,3 +4,4 @@ flask_limiter
 flask_sqlalchemy
 pytz
 requests
+psycopg2-binary
