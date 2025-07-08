@@ -96,14 +96,14 @@ class Participant(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     utilisateur_id = db.Column(db.Integer, db.ForeignKey('utilisateur.id'), nullable=False)
     inscription_date = db.Column(db.DateTime, default=lambda:datetime.now(PARIS_TZ))
-
+    utilisateur = db.relationship('Utilisateur', backref='participants')
     
 class Attente(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     utilisateur_id = db.Column(db.Integer, db.ForeignKey('utilisateur.id'), nullable=False)
     contacted = db.Column(db.Boolean, default=False)
     inscription_date = db.Column(db.DateTime, default=lambda:datetime.now(PARIS_TZ))
-
+    utilisateur = db.relationship('Utilisateur', backref='attentes')
     
 class NotificationStatus(Enum):
     PENDING = "pending"
@@ -118,7 +118,7 @@ class Notification(db.Model):
     expires_at = db.Column(db.DateTime, nullable=False)
     status = db.Column(db.String(20), default=NotificationStatus.PENDING.value, nullable=False)
     processed_at = db.Column(db.DateTime, nullable=True)
-
+    utilisateur = db.relationship('Utilisateur', backref='notifications')
     
 class PlacesLiberees(db.Model):
     event_id = db.Column(db.Integer, db.ForeignKey('event.id'), primary_key=True)
@@ -401,7 +401,6 @@ def cancel_request():
     confirm_url = url_for('confirm_action', token=token, _external=True)
 
     # Envoi du mail
-    user = Utilisateur.query.filter_by(email=email).first()
     prenom = user.prenom if user else ""
     sujet = f"Confirmation de l'annulation de votre partipation au {event.name}"
     corps = f"""
@@ -544,8 +543,12 @@ def statut_direct():
         else:
             statut = f"Vous êtes inscrit au {event.name} mais vous n'avez pas encore effectué votre paiement. Celui-ci sera à effectuer sur place le jour de l'évènement."
     elif attente:
-        ahead = Attente.query.filter(Attente.inscription_date < attente.inscription_date, Attente.contacted == False, Attente.utilisateur_id == user.id).count()
-        statut = f"Vous êtes sur la liste d’attente avec {ahead} personne(s) devant vous."
+        ahead = Attente.query.join(Attente.utilisateur).filter(
+            Attente.inscription_date < attente.inscription_date,
+            Attente.contacted == False,
+            Utilisateur.event_id == event.id,
+        ).count()
+        statut = f"Vous êtes sur la liste d’attente du {event.name} avec {ahead} personne(s) devant vous."
     else:
         if user.paid:
             statut = f"Vous avez réglé votre participation mais vous n’êtes actuellement pas inscrit au {event.name}. Un remboursement vous sera effectué après la tenue de l'évènement."
