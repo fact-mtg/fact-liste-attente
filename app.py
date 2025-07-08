@@ -77,7 +77,6 @@ class Event(db.Model):
     date = db.Column(db.Date, nullable=False)
     active = db.Column(db.Boolean, default=False)
 
-
 class Utilisateur(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(120), nullable=False)
@@ -90,7 +89,6 @@ class Utilisateur(db.Model):
     table_args__ = (
         db.UniqueConstraint('email', 'event_id', name='uq_email_event'),
     )
-
 
 class Participant(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -123,12 +121,10 @@ class Notification(db.Model):
 class PlacesLiberees(db.Model):
     event_id = db.Column(db.Integer, db.ForeignKey('event.id'), primary_key=True)
     compteur = db.Column(db.Integer, default=0)
-
     
 class CompteurEmails(db.Model):
     date = db.Column(db.Date, primary_key=True)
     count = db.Column(db.Integer, default=0)
-
     
 class Emails(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -138,7 +134,6 @@ class Emails(db.Model):
     html = db.Column(db.Text, nullable=True)
     status = db.Column(db.String(20), default='pending')
     error_message = db.Column(db.Text, nullable=True)
-
     
 class Logs(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -284,7 +279,7 @@ def export_csv(event_id):
     # 1. Participants
     p_file = f"participants_{event.name}_{timestamp}.csv"
     with open(os.path.join(EXPORT_DIR, p_file), "w", newline='', encoding="utf-8") as f:
-        writer = csv.writer(f)
+        writer = csv.writer(f, delimiter=';')
         writer.writerow(["Email", "Prénom", "Nom"])
         for u in participants:
             writer.writerow([u.email, u.prenom or "", u.nom or ""])
@@ -293,7 +288,7 @@ def export_csv(event_id):
     # 2. A faire payer
     np_file = f"a_faire_payer_{event.name}_{timestamp}.csv"
     with open(os.path.join(EXPORT_DIR, np_file), "w", newline='', encoding="utf-8") as f:
-        writer = csv.writer(f)
+        writer = csv.writer(f, delimiter=';')
         writer.writerow(["Email", "Prénom", "Nom"])
         for u in non_payes:
             writer.writerow([u.email, u.prenom or "", u.nom or ""])
@@ -302,7 +297,7 @@ def export_csv(event_id):
     # 3. A rembourser
     pp_file = f"a_rembourser_{event.name}_{timestamp}.csv"
     with open(os.path.join(EXPORT_DIR, pp_file), "w", newline='', encoding="utf-8") as f:
-        writer = csv.writer(f)
+        writer = csv.writer(f, delimiter=';')
         writer.writerow(["Email", "Prénom", "Nom"])
         for u in payes_non_participants:
             writer.writerow([u.email, u.prenom or "", u.nom or ""])
@@ -652,13 +647,14 @@ def admin_panel():
     events = Event.query.all()
     return render_template("admin.html", events=events)
 
-
-@app.route('/admin/init_participants', methods=['POST'])
+    
+@app.route('/init_participants', methods=['POST'])
 @requires_auth
 def init_participants():
     name = request.form.get('nom_evenement')
     date_str = request.form.get('date_evenement')
     file = request.files.get('csvfile')
+    selected_tarifs = request.form.getlist('tarifs')
 
     if not name or not date_str or not file or file.filename == '':
         return render_template("message.html", prenom="", message="Les 3 champs (nom, date, fichier CSV) sont obligatoires.")
@@ -671,42 +667,90 @@ def init_participants():
     try:
         event_exist = Event.query.filter_by(name=name).first()
         if event_exist:
-            return render_template("message.html", prenom="", message=f"L'évènement \"{name}\" existe déjà.") 
+            return render_template("message.html", prenom="", message=f"L'évènement \"{name}\" existe déjà.")
+
+        stream = io.StringIO(file.stream.read().decode("utf-8-sig"))
+        reader = csv.DictReader(stream, delimiter=';')
+        
+        fieldnames = set(reader.fieldnames)
+        lower_fieldnames = {name.lower(): name for name in fieldnames}
+
+        # Colonne Statut
+        has_statut = 'statut de la commande'.lower() in lower_fieldnames
+        
+        # Colonne tarif
+        has_tarif = 'tarif'.lower() in lower_fieldnames
+        
+        # Prénom
+        prenom_col = (
+            lower_fieldnames.get('prénom participant'.lower())
+            or lower_fieldnames.get('prénom'.lower())
+        )
+        # Nom
+        nom_col = (
+            lower_fieldnames.get('nom participant'.lower())
+            or lower_fieldnames.get('nom'.lower())
+        )
+        # Colonnes email
+        email_col = next(
+            (original_name for lower_name, original_name in lower_fieldnames.items()
+             if lower_name.startswith("adresse mail de contact")),
+            lower_fieldnames.get("email")
+        )
+
+        
+        if not prenom_col or not nom_col or not email_col:
+            return render_template("message.html", prenom="", message="Le fichier CSV doit contenir au moins les colonnes prénom, nom et email.")
+
+        # Si pas de colonne Tarif, on simule un tarif unique
+        if not has_tarif:
+            tarifs_possibles = ['Tarif unique']
+        else:
+            tarifs_possibles = selected_tarifs
+
         
         event = Event(name=name, date=date)
         db.session.add(event)
         db.session.commit()
         
-        stream = io.StringIO(file.stream.read().decode("utf-8"))
-        reader = csv.DictReader(stream)
-        expected_cols = {'Email', 'Prénom', 'Nom'}
-        
-        if not expected_cols.issubset(set(reader.fieldnames)):
-            return render_template("message.html", prenom="", message="Le fichier CSV doit contenir les colonnes : Email, Prénom, Nom.")
-
         count = 0
         for row in reader:
-            email = row['Email'].strip()
-            prenom = row['Prénom'].strip()
-            nom = row['Nom'].strip()
+            # Filtrage statut
+            if has_statut:
+                statut = row.get('Statut de la commande', '').strip().lower()
+                if statut != 'validé':
+                    continue
 
-            if email:
-                user = Utilisateur.query.filter_by(email=email, event_id=event.id).first()
-                if not user:
-                    user = Utilisateur(email=email, event_id=event.id, prenom=prenom, nom=nom, paid=True)
-                    db.session.add(user)
-                    db.session.commit()
+            # Tarifs
+            tarif = row.get('Tarif', 'Tarif unique').strip() if has_tarif else 'Tarif unique'
+            if tarif not in tarifs_possibles:
+                continue
+
+            # Récupération données
+            prenom = row.get(prenom_col, '').strip()
+            nom = row.get(nom_col, '').strip()
+            email = row.get(email_col, '').strip()
+
+            if not email:
+                continue
+
+            user = Utilisateur.query.filter_by(email=email, event_id=event.id).first()
+            if not user:
+                user = Utilisateur(email=email, event_id=event.id, prenom=prenom, nom=nom, paid=True)
+                db.session.add(user)
+                db.session.commit()
 
                 participant = Participant(utilisateur_id=user.id)
                 db.session.add(participant)
                 db.session.commit()
                 count += 1
 
-        return render_template("message.html", prenom="", message=f"L'évènement \"{event.name}\" a été crée avec {count} participants.")
+        return render_template("message.html", prenom="", message=f"L'évènement \"{event.name}\" a été créé avec {count} participants.")
 
     except Exception as e:
         db.session.rollback()
-        return render_template("message.html", prenom="", message=f"Erreur lors de l'import CSV : {e}")
+        return render_template("message.html", prenom="", message=f"Erreur lors de l'import : {e}")
+
 
 
 @app.route('/admin/toggle_event_status', methods=['POST'])

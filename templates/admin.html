@@ -15,29 +15,105 @@
     <h1 class="display-4">Administration</h1>
     </div>
     
-    <!-- Création d'un évènement -->
-    <form action="{{ url_for('init_participants') }}" method="post" enctype="multipart/form-data" class="card p-4 mb-5 shadow-sm mx-auto" style="max-width: 480px;">
-      <h2 class="h4 mb-3">Créer un nouvel évènement</h2>
+<form id="eventForm" action="{{ url_for('init_participants') }}" method="post" enctype="multipart/form-data" class="card p-4 mb-5 shadow-sm mx-auto" style="max-width: 480px;">
+  <h2 class="h4 mb-3">Créer un nouvel évènement</h2>
 
-      <div class="mb-3">
-        <label for="nom_evenement" class="form-label">Nom évènement</label>
-        <input type="text" id="nom_evenement" name="nom_evenement" required class="form-control" />
-      </div>
+  <div class="mb-3">
+    <label for="nom_evenement" class="form-label">Nom évènement</label>
+    <input type="text" id="nom_evenement" name="nom_evenement" required class="form-control" />
+  </div>
 
-      <div class="mb-3">
-        <label for="date_evenement" class="form-label">Date</label>
-        <input type="date" id="date_evenement" name="date_evenement" required class="form-control" />
-      </div>
+  <div class="mb-3">
+    <label for="date_evenement" class="form-label">Date</label>
+    <input type="date" id="date_evenement" name="date_evenement" required class="form-control" />
+  </div>
 
-      <div class="mb-4">
-        <label for="csvfile" class="form-label">Importer participants (CSV)</label>
-        <input type="file" id="csvfile" name="csvfile" accept=".csv" required class="form-control" />
-      </div>
+  <div class="mb-4">
+    <label for="csvfile" class="form-label">Importer participants (CSV)</label>
+    <input type="file" id="csvfile" name="csvfile" accept=".csv" required class="form-control" />
+  </div>
 
-      <button type="submit" class="btn btn-primary w-100">
-        Créer évènement
-      </button>
-    </form>
+  <div id="tarif-selection" class="mb-4" style="display: none;">
+    <label class="form-label">Sélectionnez les participants à importer :</label>
+    <div id="tarifs-container" class="form-check"></div>
+  </div>
+
+  <button type="submit" class="btn btn-primary w-100" id="submitBtn" disabled>
+    Créer évènement
+  </button>
+</form>
+
+<script>
+  document.getElementById('csvfile').addEventListener('change', function (e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function (event) {
+      const text = event.target.result;
+      const lignes = text.split(/\r?\n/);
+      if (lignes.length < 2) {
+        alert('Le fichier CSV semble vide ou invalide.');
+        return;
+      }
+
+      const headers = lignes[0].split(';').map(h => h.trim());
+      const tarifIndex = headers.indexOf('Tarif');
+
+      const container = document.getElementById('tarifs-container');
+      container.innerHTML = '';
+
+      if (tarifIndex === -1) {
+        // Pas de colonne Tarif : on crée une case unique
+        const div = document.createElement('div');
+        div.className = 'form-check';
+        div.innerHTML = `
+          <input class="form-check-input" type="checkbox" name="tarifs" value="Tarif unique" id="tarif_unique" checked>
+          <label class="form-check-label" for="tarif_unique">Tout le monde</label>
+        `;
+        container.appendChild(div);
+      } else {
+        // Colonne Tarif présente : on extrait tous les tarifs
+        const tarifsSet = new Set();
+        for (let i = 1; i < lignes.length; i++) {
+          const ligne = lignes[i].split(';');
+          if (ligne.length <= tarifIndex) continue;
+          const tarif = ligne[tarifIndex].trim();
+          if (tarif) tarifsSet.add(tarif);
+        }
+
+        if (tarifsSet.size === 0) {
+          // Si la colonne est là mais vide, on met aussi "Tarif unique"
+          const div = document.createElement('div');
+          div.className = 'form-check';
+          div.innerHTML = `
+            <input class="form-check-input" type="checkbox" name="tarifs" value="Tarif unique" id="tarif_unique" checked>
+            <label class="form-check-label" for="tarif_unique">Tout le monde</label>
+          `;
+          container.appendChild(div);
+        } else {
+          tarifsSet.forEach(tarif => {
+            const id = 'tarif_' + btoa(tarif).replace(/[^a-z0-9]/gi, '');
+            const div = document.createElement('div');
+            div.className = 'form-check';
+            div.innerHTML = `
+              <input class="form-check-input" type="checkbox" name="tarifs" value="${tarif}" id="${id}" checked>
+              <label class="form-check-label" for="${id}">${tarif}</label>
+            `;
+            container.appendChild(div);
+          });
+        }
+      }
+
+      document.getElementById('tarif-selection').style.display = 'block';
+      document.getElementById('submitBtn').disabled = false;
+    };
+
+    reader.readAsText(file, 'UTF-8');
+  });
+</script>
+
+
 
     <!-- Gestion du statut actif/inactif -->
     <section class="card p-4 mb-5 shadow-sm mx-auto" style="max-width: 480px;">
