@@ -392,7 +392,7 @@ def cancel_request():
         if not captcha_token or not verify_captcha(captcha_token):
             return render_template("message.html", message="Échec de la vérification CAPTCHA.")
 
-    user = Utilisateur.query.filter_by(email=email,event_id=event.id).first()
+    user = Utilisateur.query.filter_by(email=email, event_id=event.id).first()
     participant = Participant.query.filter_by(utilisateur_id=user.id).first() if user else None
     if not participant:
         return render_template("message.html", prenom="", message=f"Vous n'êtes pas inscrit au {event.name}.")
@@ -543,7 +543,7 @@ def statut_direct():
         else:
             statut = f"Vous êtes inscrit au {event.name} mais vous n'avez pas encore effectué votre paiement. Celui-ci sera à effectuer sur place le jour de l'évènement."
     elif attente:
-        ahead = Attente.query.join(Attente.utilisateur).filter(
+        ahead = Attente.query.join(Utilisateur).filter(
             Attente.inscription_date < attente.inscription_date,
             Attente.contacted == False,
             Utilisateur.event_id == event.id,
