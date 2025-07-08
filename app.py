@@ -8,7 +8,7 @@ from email.mime.text import MIMEText
 from datetime import datetime, timezone
 from pytz import timezone, utc
 from functools import wraps
-from sqlalchemy import MetaData
+from sqlalchemy import MetaData, delete
 from enum import Enum
 from urllib.parse import unquote
 
