@@ -714,6 +714,8 @@ def init_participants():
         db.session.commit()
         
         count = 0
+        utilisateurs_to_add = []
+        
         for row in reader:
             # Filtrage statut
             if has_statut:
@@ -734,16 +736,24 @@ def init_participants():
             if not email:
                 continue
 
-            user = Utilisateur.query.filter_by(email=email, event_id=event.id).first()
-            if not user:
+            if not any(u.email == email for u in utilisateurs_to_add):
                 user = Utilisateur(email=email, event_id=event.id, prenom=prenom, nom=nom, paid=True)
-                db.session.add(user)
-                db.session.commit()
-
-                participant = Participant(utilisateur_id=user.id)
-                db.session.add(participant)
-                db.session.commit()
+                utilisateurs_to_add.append(user)
                 count += 1
+
+        # Insertion en batch
+        db.session.add_all(utilisateurs_to_add)
+        db.session.commit()
+
+        # Création des participants après avoir les IDs
+        
+        participants_to_add = []
+        for user in utilisateurs_to_add:
+            participant = Participant(utilisateur_id=user.id)
+            participants_to_add.append(participant)
+
+        db.session.add_all(participants_to_add)
+        db.session.commit()
 
         return render_template("message.html", prenom="", message=f"L'évènement \"{event.name}\" a été créé avec {count} participants.")
 
