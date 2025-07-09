@@ -402,7 +402,7 @@ def cancel_request():
     """
     if EMAIL:
         send_email(email, sujet, corps)
-    print(f"Lien de confirmation cancel_request pour {email} : {confirm_url}")
+    print(f"Lien de confirmation cancel_request envoyé à {email} pour le {event.name} : {confirm_url}")
     return render_template("message.html", message=f"Un email de confirmation a été envoyé à {email}.", prenom=prenom)
 
 
@@ -455,7 +455,7 @@ def waitlist_request():
     """
     if EMAIL:
         send_email(email, sujet, corps)
-    print(f"Lien de confirmation waitlist_request pour {email}: {confirm_url}")
+    print(f"Lien de confirmation waitlist_request envoyé à {email} pour le {event.name} : {confirm_url}")
     return render_template("message.html", message=f"Un email de confirmation a été envoyé à {email}", prenom=prenom)
 
 
@@ -894,7 +894,6 @@ def notify_next(event_id):
         )
         db.session.add(n)
 
-
         compteur.compteur -= 1
         db.session.commit()
 
@@ -909,9 +908,9 @@ def notify_next(event_id):
         """
         if EMAIL:
             send_email(user.email, sujet, corps)
-        print(f"Lien de confirmation notify_next pour {user.email} avant le {expiration_str}: {confirm_url}")
+        print(f"Lien de confirmation notify_next envoyé à {user.email} pour le {event.name} expirant le {expiration_str}: {confirm_url}")
     else:
-        print("Aucune autre personne en attente à notifier.")
+        print("Aucune autre personne en attente à notifier pour le {event.name} alors qu'il y a {compteur.compteur} place(s) disponible(s).")
         
 
 def run_check_expirations():
@@ -921,7 +920,7 @@ def run_check_expirations():
         date_str = event.date.strftime('%d/%m/%Y')
         
         if now.date() >= event.date:
-            print(f"La date limite ({date_str}) est dépassée. L'envoi d'emails aux personnes sur la liste d'attente est terminé.")
+            print(f"La date limite ({date_str}) du {event.name} est dépassée. L'envoi d'emails aux personnes sur la liste d'attente est terminé.")
             
         else:
             notifications = (
@@ -941,12 +940,12 @@ def run_check_expirations():
                 notif_time = notif_time.astimezone(PARIS_TZ)
 
                 if now > notif_time:
-                    print(f"Notification expirée pour {user.email}")
+                    print(f"Notification expirée pour {user.email} pour le {event.name}.")
 
                     attente = Attente.query.filter_by(utilisateur_id=user.id).first()
                     if attente:
                         db.session.delete(attente)
-                        print(f"{user.email} supprimé de la liste d'attente")
+                        print(f"{user.email} supprimé de la liste d'attente du {event.name}")
                         expiration_str = notif_time.strftime("%d/%m/%Y à %Hh%M (heure de Paris)")
 
                         sujet = f"La place pour le {event.name} n'est plus disponible"
@@ -959,7 +958,6 @@ def run_check_expirations():
                         if EMAIL:
                             send_email(user.email, sujet, corps)
 
-                    # Au lieu de supprimer la notif, on marque comme expirée
                     notif.status = NotificationStatus.EXPIRED.value
                     notif.processed_at = now
 
