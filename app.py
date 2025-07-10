@@ -116,7 +116,7 @@ class Notification(db.Model):
     
 class CompteurPlacesDisponibles(db.Model):
     event_id = db.Column(db.Integer, db.ForeignKey('event.id'), primary_key=True)
-    compteur = db.Column(db.Integer, default=0)
+    count = db.Column(db.Integer, default=0)
     
 class CompteurEmails(db.Model):
     date = db.Column(db.Date, primary_key=True)
@@ -585,7 +585,7 @@ def confirm_action(token):
                 compteur = CompteurPlacesDisponibles(event_id=event.id, compteur=1)
                 db.session.add(compteur)
             else:
-                compteur.compteur += 1
+                compteur.count += 1
             db.session.commit()
             return render_template("message.html", message=f"Votre participation au {event.name} a été annulée. Un remboursement vous sera effectué après la tenue de l'évènement.", prenom=prenom)
         else:
@@ -864,7 +864,7 @@ def export_zip():
 def notify_next(event_id):
     event = Event.query.filter_by(id=event_id).first()
     compteur = CompteurPlacesDisponibles.query.filter_by(event_id=event_id).first()
-    if not compteur or compteur.compteur <= 0:
+    if not compteur or compteur.count <= 0:
         return
 
     next_waiting = (
@@ -894,7 +894,7 @@ def notify_next(event_id):
         )
         db.session.add(n)
 
-        compteur.compteur -= 1
+        compteur.count -= 1
         db.session.commit()
 
         # Envoi du mail
@@ -910,7 +910,7 @@ def notify_next(event_id):
             send_email(user.email, sujet, corps)
         print(f"Lien de confirmation notify_next envoyé à {user.email} pour le {event.name} expirant le {expiration_str}: {confirm_url}")
     else:
-        print(f"Aucune autre personne en attente à notifier pour le {event.name} alors qu'il y a {compteur.compteur} place(s) disponible(s).")
+        print(f"Aucune autre personne en attente à notifier pour le {event.name} alors qu'il y a {compteur.count} place(s) disponible(s).")
         
 
 def run_check_expirations():
@@ -966,7 +966,7 @@ def run_check_expirations():
                         compteur = CompteurPlacesDisponibles(event_id=event.id, compteur=1)
                         db.session.add(compteur)
                     else:
-                        compteur.compteur += 1
+                        compteur.count += 1
 
                     db.session.commit()
 
