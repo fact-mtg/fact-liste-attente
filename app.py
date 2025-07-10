@@ -75,6 +75,7 @@ class Event(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), unique=True, nullable=False)
     date = db.Column(db.Date, nullable=False)
+    payment_link = db.Column(db.Text, nullable=False)
     active = db.Column(db.Boolean, default=False)
     
 class Utilisateur(db.Model):
@@ -403,7 +404,7 @@ def cancel_request():
     if EMAIL:
         send_email(email, sujet, corps)
     print(f"Lien de confirmation cancel_request envoyé à {email} pour le {event.name} : {confirm_url}")
-    return render_template("message.html", message=f"Un email de confirmation a été envoyé à {email}.", prenom=prenom)
+    return render_template("message.html", message=f"Un email a été envoyé à {email}. Veuillez suivre le lien de confirmation contenu dans cet email pour annuler votre participation au {event.name}.", prenom=prenom)
 
 
 @app.route('/waitlist', methods=['POST'])
@@ -456,7 +457,7 @@ def waitlist_request():
     if EMAIL:
         send_email(email, sujet, corps)
     print(f"Lien de confirmation waitlist_request envoyé à {email} pour le {event.name} : {confirm_url}")
-    return render_template("message.html", message=f"Un email de confirmation a été envoyé à {email}", prenom=prenom)
+    return render_template("message.html", message=f"Un email a été envoyé à {email}. Veuillez suivre le lien de confirmation contenu dans cet email pour vous inscrire à la liste d'attente du {event.name}.", prenom=prenom)
 
 
 @app.route('/profil/<token>', methods=['GET', 'POST'])
@@ -621,7 +622,7 @@ def confirm_action(token):
                 notif_time = utc.localize(notif_time)
 
             notif_time = notif_time.astimezone(PARIS_TZ)
-
+            
             if datetime.now(PARIS_TZ) < notif_time:
                 if not Participant.query.filter_by(utilisateur_id=user.id).first():
                     db.session.add(Participant(utilisateur_id=user.id))
@@ -629,7 +630,14 @@ def confirm_action(token):
                     notif.status = NotificationStatus.RESPONDED.value
                     notif.processed_at = datetime.now(PARIS_TZ)
                     db.session.commit()
-                    return render_template("message.html", message=f"Félicitations, vous avez maintenant une place pour le {event.name} !", prenom=user.prenom)
+
+                    message = f"Félicitations, vous avez maintenant une place pour le {event.name} !"
+                    if not user.paid:
+                        message +="""<br>
+                        Veuillez suivre ce lien pour finaliser le paiement : 
+                        <a href="{event.payment_link}" target="_blank" rel="noopener noreferrer">Payer maintenant</a>
+                        """
+                    return render_template("message.html", message=message, prenom=user.prenom)
                 return render_template("message.html", message=f"Vous êtes déjà inscrit au {event.name}.", prenom=prenom)
 
         return render_template("message.html", message="Lien expiré ou déjà utilisé.", prenom=prenom)
@@ -669,10 +677,11 @@ def admin_panel():
 def init_participants():
     name = request.form.get('nom_evenement')
     date_str = request.form.get('date_evenement')
+    payment_link = request.form.get('payment_link')
     file = request.files.get('csvfile')
     selected_tarifs = request.form.getlist('tarifs')
 
-    if not name or not date_str or not file or file.filename == '':
+    if not name or not date_str or not payment_link or not file or file.filename == '':
         return render_template("message.html", prenom="", message="Les 3 champs (nom, date, fichier CSV) sont obligatoires.")
 
     try:
@@ -724,13 +733,15 @@ def init_participants():
         else:
             tarifs_possibles = selected_tarifs
 
-        
-        event = Event(name=name, date=date)
+        event = Event(name=name, date=date, payment_link=payment_link)
         db.session.add(event)
         db.session.commit()
         
         count = 0
         utilisateurs_to_add = []
+
+        doublon = False
+        doublon_list = []
         
         for row in reader:
             # Filtrage statut
@@ -756,7 +767,15 @@ def init_participants():
                 user = Utilisateur(email=email, event_id=event.id, prenom=prenom, nom=nom, paid=True)
                 utilisateurs_to_add.append(user)
                 count += 1
+            else:
+                doublon = True
+                doublon_list.append(email)
 
+        if doublon:
+            db.session.delete(event)
+            db.session.commit()
+            return render_template("message.html", prenom="", message=f"Le fichier CSV contient les utilisateurs suivants en doublon : {doublon_list}.")
+            
         # Insertion en batch
         db.session.add_all(utilisateurs_to_add)
         db.session.commit()
