@@ -9,7 +9,7 @@
 <body class="bg-light py-4">
   <div class="container bg-white rounded-3 shadow p-4" style="max-width: 600px;">
     <h1 class="fw-bold mb-3">Bonjour{{ ' ' + prenom if prenom else '' }},</h1>
-    <p class="fs-5 text-secondary">{{ message }}</p>
+    <p class="fs-5 text-secondary">{{ message | safe }}</p>
     
     <div class="d-flex justify-content-end mt-4">
       <a href="{{ url_for('home') }}" class="btn btn-outline-primary">
