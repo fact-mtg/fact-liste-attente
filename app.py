@@ -652,7 +652,7 @@ def admin_panel():
             Utilisateur.event_id == event.id,
             Notification.status == NotificationStatus.PENDING.value
         ).count()
-        places_disponibles_count = db.session.query(CompteurPlacesDisponibles).filter_by(event_id=event.id).count()
+        places_disponibles_count = db.session.query(CompteurPlacesDisponibles).filter_by(event_id=event.id).first()
 
         stats[event.id] = {
             'participants': participant_count,
