@@ -825,7 +825,7 @@ def delete_event(event_id):
     """), {'eid': event_id})
 
     db.session.execute(text("""
-        DELETE FROM places_liberees WHERE event_id = :eid;
+        DELETE FROM compteur_places_disponibles WHERE event_id = :eid;
     """), {'eid': event_id})
 
     db.session.execute(text("""
