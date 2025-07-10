@@ -114,7 +114,7 @@ class Notification(db.Model):
     status = db.Column(db.String(20), default=NotificationStatus.PENDING.value, nullable=False)
     processed_at = db.Column(db.DateTime, nullable=True)
     
-class PlacesLiberees(db.Model):
+class CompteurPlacesDisponibles(db.Model):
     event_id = db.Column(db.Integer, db.ForeignKey('event.id'), primary_key=True)
     compteur = db.Column(db.Integer, default=0)
     
@@ -122,7 +122,7 @@ class CompteurEmails(db.Model):
     date = db.Column(db.Date, primary_key=True)
     count = db.Column(db.Integer, default=0)
     
-class Emails(db.Model):
+class Email(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     timestamp = db.Column(db.DateTime, default=lambda: datetime.now(PARIS_TZ))
     email = db.Column(db.String(120), nullable=False)
@@ -131,7 +131,7 @@ class Emails(db.Model):
     status = db.Column(db.String(20), default='pending')
     error_message = db.Column(db.Text, nullable=True)
     
-class Logs(db.Model):
+class Log(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     timestamp = db.Column(db.DateTime, default=lambda: datetime.now(PARIS_TZ))
     endpoint = db.Column(db.String(100))
@@ -152,7 +152,7 @@ def send_email(to_email, subject, html_body):
     msg['From'] = from_email
     msg['To'] = to_email
 
-    email_log = Emails(
+    email_log = Email(
         email=to_email,
         subject=subject,
         html=html_body
@@ -580,9 +580,9 @@ def confirm_action(token):
         p = Participant.query.filter_by(utilisateur_id=user.id).first()
         if p:
             db.session.delete(p)
-            compteur = PlacesLiberees.query.filter_by(event_id=event_id).first()
+            compteur = CompteurPlacesDisponibles.query.filter_by(event_id=event_id).first()
             if not compteur:
-                compteur = PlacesLiberees(event_id=event.id, compteur=1)
+                compteur = CompteurPlacesDisponibles(event_id=event.id, compteur=1)
                 db.session.add(compteur)
             else:
                 compteur.compteur += 1
@@ -652,13 +652,13 @@ def admin_panel():
             Utilisateur.event_id == event.id,
             Notification.status == NotificationStatus.PENDING.value
         ).count()
-        places_liberees_count = db.session.query(PlacesLiberees).filter_by(event_id=event.id).count()
+        places_disponibles_count = db.session.query(CompteurPlacesDisponibles).filter_by(event_id=event.id).count()
 
         stats[event.id] = {
             'participants': participant_count,
             'attente': attente_count,
             'notifications': pending_notif_count,
-            'places': places_liberees_count
+            'places': places_disponibles_count
         }
 
     return render_template("admin.html", events=events, stats=stats, today=today)
@@ -863,7 +863,7 @@ def export_zip():
 
 def notify_next(event_id):
     event = Event.query.filter_by(id=event_id).first()
-    compteur = PlacesLiberees.query.filter_by(event_id=event_id).first()
+    compteur = CompteurPlacesDisponibles.query.filter_by(event_id=event_id).first()
     if not compteur or compteur.compteur <= 0:
         return
 
@@ -961,9 +961,9 @@ def run_check_expirations():
                     notif.status = NotificationStatus.EXPIRED.value
                     notif.processed_at = now
 
-                    compteur = PlacesLiberees.query.filter_by(event_id=event.id).first()
+                    compteur = CompteurPlacesDisponibles.query.filter_by(event_id=event.id).first()
                     if not compteur:
-                        compteur = PlacesLiberees(event_id=event.id, compteur=1)
+                        compteur = CompteurPlacesDisponibles(event_id=event.id, compteur=1)
                         db.session.add(compteur)
                     else:
                         compteur.compteur += 1
@@ -1058,7 +1058,7 @@ def log_all_requests():
         email = request.form.get('email', 'unknown')
     
     ip = get_client_ip()
-    log = Logs(endpoint=path, ip=ip, email=email)
+    log = Log(endpoint=path, ip=ip, email=email)
     db.session.add(log)
     db.session.commit()
 

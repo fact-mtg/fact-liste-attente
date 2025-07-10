@@ -13,28 +13,28 @@
 <div class="container pt-4 mt-5">
     <div class="text-center mb-5">
       <h1 class="display-4">{{ evenement }}</h1>
-        {% if not after_date %}
-          {% if not emails_depasses %}
-            {% if event_active %}
+        {% if event_active %}
+          {% if not after_date %}
+            {% if not emails_depasses %}
                 <p class="lead">Vous pouvez annuler votre place, rejoindre la liste d'attente ou consulter votre statut</p>
 		<h4 class="card-title">AVANT LE {{ date }}</h4>
 	    {% else %}
 	        <p class="lead text-danger fw-bold">
-                L'évènement a été fermé, il n'est plus possible d'utiliser ce site.<br/>
-                </p>
+                Le serveur d'envoi de mails a atteint sa limite de capacité journalière.<br/>
+                Veuillez réessayer les annulations et inscriptions sur la liste d'attente à partir de demain.<br/>
+                Vous pouvez uniquement consulter votre statut.
+            </p>
 	    {% endif %}
 	  {% else %}
-	        <p class="lead text-danger fw-bold">
-                Le serveur d'envoi de mails de confirmation a atteint sa limite de capacité journalière.<br/>
-                Veuillez réessayer les annulations et inscriptions sur la liste d'attente à partir de demain.<br/>
+            <p class="lead text-danger fw-bold">
+                La date limite ({{ date }}) est dépassée.<br/>
+                Les annulations et inscriptions sur la liste d'attente sont désormais closes.<br/>
                 Vous pouvez uniquement consulter votre statut.
             </p>
 	  {% endif %}
         {% else %}
-            <p class="lead text-danger fw-bold">
-                La date limite ({{ date }}) est dépassée.<br/>
-                Les annulations et inscriptions sur la liste d'attente sont désormais impossibles.<br/>
-                Vous pouvez uniquement consulter votre statut.
+	    <p class="lead text-danger fw-bold">
+            L'évènement n'est plus disponible, veuillez en sélectionner un autre.<br/>
             </p>
         {% endif %}
     </div>
