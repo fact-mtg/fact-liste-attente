@@ -910,7 +910,7 @@ def notify_next(event_id):
             send_email(user.email, sujet, corps)
         print(f"Lien de confirmation notify_next envoyé à {user.email} pour le {event.name} expirant le {expiration_str}: {confirm_url}")
     else:
-        print("Aucune autre personne en attente à notifier pour le {event.name} alors qu'il y a {compteur.compteur} place(s) disponible(s).")
+        print(f"Aucune autre personne en attente à notifier pour le {event.name} alors qu'il y a {compteur.compteur} place(s) disponible(s).")
         
 
 def run_check_expirations():
