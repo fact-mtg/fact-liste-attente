@@ -635,7 +635,7 @@ def confirm_action(token):
                     if not user.paid:
                         message +=f"""<br>
                         Veuillez suivre ce lien pour finaliser le paiement : 
-                        <a href="{event.payment_link}" target="_blank" rel="noopener noreferrer">Payer maintenant</a>
+                        <a href="{event.payment_link}" target="_blank" rel="noopener noreferrer">{event.payment_link}</a>
                         """
                     return render_template("message.html", message=message, prenom=user.prenom)
                 return render_template("message.html", message=f"Vous êtes déjà inscrit au {event.name}.", prenom=prenom)
@@ -921,7 +921,7 @@ def notify_next(event_id):
         sujet = f"Une place s'est libérée pour le {event.name} !"
         corps = f"""
             <p>Bonjour {user.prenom},</p>
-            <p>Veuillez confirmer votre participation au {event.name} avant le <strong>{expiration_str}</strong>. En cliquant sur le lien suivant, <strong>vous vous engagez à payer votre place</strong> le jour de l'évènement :</p>
+            <p>Veuillez confirmer votre participation au {event.name} avant le <strong>{expiration_str}</strong> et <strong>payer votre place</strong> en suivant ce lien :</p>
             <p><a href="{confirm_url}">{confirm_url}</a></p>
             <p>Bien cordialement,<br>L’équipe du {EQUIPE}.</p>
         """
