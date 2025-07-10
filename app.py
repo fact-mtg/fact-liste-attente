@@ -404,7 +404,7 @@ def cancel_request():
     if EMAIL:
         send_email(email, sujet, corps)
     print(f"Lien de confirmation cancel_request envoyé à {email} pour le {event.name} : {confirm_url}")
-    return render_template("message.html", message=f"Un email a été envoyé à {email}. Veuillez suivre le lien de confirmation contenu dans cet email pour annuler votre participation au {event.name}.", prenom=prenom)
+    return render_template("message.html", message=f"Un email a été envoyé à {email}.<br>Veuillez suivre le lien de confirmation contenu dans cet email pour annuler votre participation au {event.name}.", prenom=prenom)
 
 
 @app.route('/waitlist', methods=['POST'])
@@ -457,7 +457,7 @@ def waitlist_request():
     if EMAIL:
         send_email(email, sujet, corps)
     print(f"Lien de confirmation waitlist_request envoyé à {email} pour le {event.name} : {confirm_url}")
-    return render_template("message.html", message=f"Un email a été envoyé à {email}. Veuillez suivre le lien de confirmation contenu dans cet email pour vous inscrire à la liste d'attente du {event.name}.", prenom=prenom)
+    return render_template("message.html", message=f"Un email a été envoyé à {email}.<br>Veuillez suivre le lien de confirmation contenu dans cet email pour vous inscrire à la liste d'attente du {event.name}.", prenom=prenom)
 
 
 @app.route('/profil/<token>', methods=['GET', 'POST'])
@@ -633,7 +633,7 @@ def confirm_action(token):
 
                     message = f"Félicitations, vous avez maintenant une place pour le {event.name} !"
                     if not user.paid:
-                        message +="""<br>
+                        message +=f"""<br>
                         Veuillez suivre ce lien pour finaliser le paiement : 
                         <a href="{event.payment_link}" target="_blank" rel="noopener noreferrer">Payer maintenant</a>
                         """
