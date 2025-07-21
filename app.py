@@ -735,20 +735,20 @@ def init_participants():
         lower_fieldnames = {name.lower(): name for name in fieldnames}
 
         # Colonne Statut
-        has_statut = 'statut de la commande'.lower() in lower_fieldnames
+        has_statut = 'statut de la commande' in lower_fieldnames
         
         # Colonne tarif
-        has_tarif = 'tarif'.lower() in lower_fieldnames
+        has_tarif = 'tarif' in lower_fieldnames
         
         # Prénom
         prenom_col = (
-            lower_fieldnames.get('prénom participant'.lower())
-            or lower_fieldnames.get('prénom'.lower())
+            lower_fieldnames.get('prénom participant')
+            or lower_fieldnames.get('prénom')
         )
         # Nom
         nom_col = (
-            lower_fieldnames.get('nom participant'.lower())
-            or lower_fieldnames.get('nom'.lower())
+            lower_fieldnames.get('nom participant')
+            or lower_fieldnames.get('nom')
         )
         # Colonnes email
         email_col = next(
@@ -792,7 +792,7 @@ def init_participants():
             # Récupération données
             prenom = row.get(prenom_col, '').strip()
             nom = row.get(nom_col, '').strip()
-            email = row.get(email_col, '').strip()
+            email = row.get(email_col, '').strip().lower()
 
             if not email:
                 continue
