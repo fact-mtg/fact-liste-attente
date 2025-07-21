@@ -547,7 +547,12 @@ def statut_direct():
         if user.paid:
             a = Annule.query.filter_by(utilisateur_id=user.id).first()
             event_datetime = PARIS_TZ.localize(datetime.combine(event.date, datetime.min.time()))
-            if a.inscription_date < event_datetime - timedelta(days=7):
+            annulation_date = a.inscription_date
+            if annulation_date.tzinfo is None:
+                annulation_date = utc.localize(annulation_date)
+            annulation_date = annulation_date.astimezone(PARIS_TZ)
+            
+            if annulation_date <= event_datetime - timedelta(days=7):
                 statut = f"Vous avez réglé votre participation mais vous n’êtes actuellement pas inscrit au {event.name}. Un remboursement vous sera effectué après la tenue de l'évènement."
             else:
                 statut = f"Vous avez réglé votre participation mais vous n’êtes actuellement pas inscrit au {event.name}. Ayant annulé votre place moins de 7 jours avant la tenue de l'évènement, le remboursement de votre place n'est pas garanti. Le remboursement vous sera effectué si votre place est pourvue."
@@ -599,7 +604,12 @@ def confirm_action(token):
             db.session.commit()
             a = Annule.query.filter_by(utilisateur_id=user.id).first()
             event_datetime = PARIS_TZ.localize(datetime.combine(event.date, datetime.min.time()))
-            if a.inscription_date < event_datetime - timedelta(days=7):
+            annulation_date = a.inscription_date
+            if annulation_date.tzinfo is None:
+                annulation_date = utc.localize(annulation_date)
+            annulation_date = annulation_date.astimezone(PARIS_TZ)
+            
+            if annulation_date <= event_datetime - timedelta(days=7):
                 return render_template("message.html", message=f"Votre participation au {event.name} a été annulée. Un remboursement vous sera effectué après la tenue de l'évènement.", prenom=prenom)
             else:
                 return render_template("message.html", message=f"Votre participation au {event.name} a été annulée. Ayant annulé votre place moins de 7 jours avant la tenue de l'évènement, le remboursement de votre place n'est pas garanti. Le remboursement vous sera effectué si votre place est pourvue.", prenom=prenom)
