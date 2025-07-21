@@ -281,7 +281,10 @@ def export_csv(event_id):
         writer = csv.writer(f, delimiter=';')
         writer.writerow(["Email", "Prénom", "Nom", "Date"])
         for u, date in participants:
-            writer.writerow([u.email, u.prenom or "", u.nom or "", PARIS_TZ.localize(date)  or ""])
+            if date.tzinfo is None:
+               date = utc.localize(date)
+            date = date.astimezone(PARIS_TZ)
+            writer.writerow([u.email, u.prenom or "", u.nom or "", date  or ""])
     filenames.append(p_file)
 
     # 2. A faire payer
@@ -290,7 +293,10 @@ def export_csv(event_id):
         writer = csv.writer(f, delimiter=';')
         writer.writerow(["Email", "Prénom", "Nom", "Date"])
         for u, date in non_payes:
-            writer.writerow([u.email, u.prenom or "", u.nom or "", PARIS_TZ.localize(date) or ""])
+            if date.tzinfo is None:
+               date = utc.localize(date)
+            date = date.astimezone(PARIS_TZ)
+            writer.writerow([u.email, u.prenom or "", u.nom or "", date or ""])
     filenames.append(np_file)
 
     # 3. A rembourser
@@ -299,7 +305,10 @@ def export_csv(event_id):
         writer = csv.writer(f, delimiter=';')
         writer.writerow(["Email", "Prénom", "Nom", "Date"])
         for u, date in payes_non_participants:
-            writer.writerow([u.email, u.prenom or "", u.nom or "", PARIS_TZ.localize(date) or ""])
+            if date.tzinfo is None:
+               date = utc.localize(date)
+            date = date.astimezone(PARIS_TZ)
+            writer.writerow([u.email, u.prenom or "", u.nom or "", date or ""])
     filenames.append(pp_file)
 
     # Création du zip
