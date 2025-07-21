@@ -8,7 +8,7 @@ from email.mime.text import MIMEText
 from datetime import datetime, timezone
 from pytz import timezone, utc
 from functools import wraps
-from sqlalchemy import MetaData, text
+from sqlalchemy import MetaData, text, asc
 from enum import Enum
 from urllib.parse import unquote
 
@@ -100,6 +100,11 @@ class Attente(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     utilisateur_id = db.Column(db.Integer, db.ForeignKey('utilisateur.id'), nullable=False)
     contacted = db.Column(db.Boolean, default=False)
+    inscription_date = db.Column(db.DateTime, default=lambda:datetime.now(PARIS_TZ))
+
+class Annule(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    utilisateur_id = db.Column(db.Integer, db.ForeignKey('utilisateur.id'), nullable=False)
     inscription_date = db.Column(db.DateTime, default=lambda:datetime.now(PARIS_TZ))
     
 class NotificationStatus(Enum):
@@ -258,46 +263,43 @@ def export_csv(event_id):
     filenames = []
 
     # Requêtes
-    participants = db.session.query(Utilisateur).filter(
+    participants = db.session.query(Utilisateur, Participant.inscription_date).join(Participant, Utilisateur.id == Participant.utilisateur_id).filter(
+        Utilisateur.event_id == event.id
+    ).order_by(asc(Participant.inscription_date)).all()
+
+    non_payes = [(u, date) for (u, date) in participants if not u.paid]
+
+    payes_non_participants = db.session.query(Utilisateur, Annule.inscription_date).join(Annule, Utilisateur.id == Annule.utilisateur_id).filter(
         Utilisateur.event_id == event.id,
-        Utilisateur.id.in_(
-            db.session.query(Participant.utilisateur_id)
-        )
-    ).all()
-    non_payes = [u for u in participants if not u.paid]
-    payes_non_participants = db.session.query(Utilisateur).filter(
-        Utilisateur.event_id == event.id,
-        Utilisateur.paid == True,
-        ~Utilisateur.id.in_(
-            db.session.query(Participant.utilisateur_id)
-        )
-    ).all()
+        Utilisateur.paid == True
+    ).order_by(asc(Annule.inscription_date)).all()
+
 
     # 1. Participants
     p_file = f"participants_{event.name}_{timestamp}.csv"
     with open(os.path.join(EXPORT_DIR, p_file), "w", newline='', encoding="utf-8") as f:
         writer = csv.writer(f, delimiter=';')
-        writer.writerow(["Email", "Prénom", "Nom"])
-        for u in participants:
-            writer.writerow([u.email, u.prenom or "", u.nom or ""])
+        writer.writerow(["Email", "Prénom", "Nom", "Date"])
+        for u, date in participants:
+            writer.writerow([u.email, u.prenom or "", u.nom or "", date or ""])
     filenames.append(p_file)
 
     # 2. A faire payer
     np_file = f"a_faire_payer_{event.name}_{timestamp}.csv"
     with open(os.path.join(EXPORT_DIR, np_file), "w", newline='', encoding="utf-8") as f:
         writer = csv.writer(f, delimiter=';')
-        writer.writerow(["Email", "Prénom", "Nom"])
-        for u in non_payes:
-            writer.writerow([u.email, u.prenom or "", u.nom or ""])
+        writer.writerow(["Email", "Prénom", "Nom", "Date"])
+        for u, date in non_payes:
+            writer.writerow([u.email, u.prenom or "", u.nom or "", date or ""])
     filenames.append(np_file)
 
     # 3. A rembourser
     pp_file = f"a_rembourser_{event.name}_{timestamp}.csv"
     with open(os.path.join(EXPORT_DIR, pp_file), "w", newline='', encoding="utf-8") as f:
         writer = csv.writer(f, delimiter=';')
-        writer.writerow(["Email", "Prénom", "Nom"])
-        for u in payes_non_participants:
-            writer.writerow([u.email, u.prenom or "", u.nom or ""])
+        writer.writerow(["Email", "Prénom", "Nom", "Date"])
+        for u, date in payes_non_participants:
+            writer.writerow([u.email, u.prenom or "", u.nom or "", date or ""])
     filenames.append(pp_file)
 
     # Création du zip
@@ -543,7 +545,12 @@ def statut_direct():
         statut = f"Vous êtes sur la liste d’attente du {event.name} avec {ahead} personne(s) devant vous."
     else:
         if user.paid:
-            statut = f"Vous avez réglé votre participation mais vous n’êtes actuellement pas inscrit au {event.name}. Un remboursement vous sera effectué après la tenue de l'évènement."
+            a = Annule.query.filter_by(utilisateur_id=user.id).first()
+            event_datetime = PARIS_TZ.localize(datetime.combine(event.date, datetime.min.time()))
+            if a.inscription_date < event_datetime - timedelta(days=7):
+                statut = f"Vous avez réglé votre participation mais vous n’êtes actuellement pas inscrit au {event.name}. Un remboursement vous sera effectué après la tenue de l'évènement."
+            else:
+                statut = f"Vous avez réglé votre participation mais vous n’êtes actuellement pas inscrit au {event.name}. Ayant annulé votre place moins de 7 jours avant la tenue de l'évènement, le remboursement de votre place n'est pas garanti. Le remboursement vous sera effectué si votre place est pourvue."
         else:
             statut = f"Vous n’êtes actuellement ni inscrit ni sur la liste d’attente du {event.name}."
 
@@ -581,14 +588,21 @@ def confirm_action(token):
         p = Participant.query.filter_by(utilisateur_id=user.id).first()
         if p:
             db.session.delete(p)
+            Annule.query.filter_by(utilisateur_id=user.id).delete()
+            db.session.add(Annule(utilisateur_id=user.id))
             compteur = CompteurPlacesDisponibles.query.filter_by(event_id=event_id).first()
             if not compteur:
-                compteur = CompteurPlacesDisponibles(event_id=event.id, compteur=1)
+                compteur = CompteurPlacesDisponibles(event_id=event.id, count=1)
                 db.session.add(compteur)
             else:
                 compteur.count += 1
             db.session.commit()
-            return render_template("message.html", message=f"Votre participation au {event.name} a été annulée. Un remboursement vous sera effectué après la tenue de l'évènement.", prenom=prenom)
+            a = Annule.query.filter_by(utilisateur_id=user.id).first()
+            event_datetime = PARIS_TZ.localize(datetime.combine(event.date, datetime.min.time()))
+            if a.inscription_date < event_datetime - timedelta(days=7):
+                return render_template("message.html", message=f"Votre participation au {event.name} a été annulée. Un remboursement vous sera effectué après la tenue de l'évènement.", prenom=prenom)
+            else:
+                return render_template("message.html", message=f"Votre participation au {event.name} a été annulée. Ayant annulé votre place moins de 7 jours avant la tenue de l'évènement, le remboursement de votre place n'est pas garanti. Le remboursement vous sera effectué si votre place est pourvue.", prenom=prenom)
         else:
             return render_template("message.html", message=f"Vous n'étiez pas inscrit au {event.name}.", prenom=prenom)
 
@@ -627,6 +641,7 @@ def confirm_action(token):
                 if not Participant.query.filter_by(utilisateur_id=user.id).first():
                     db.session.add(Participant(utilisateur_id=user.id))
                     Attente.query.filter_by(utilisateur_id=user.id).delete()
+                    Annule.query.filter_by(utilisateur_id=user.id).delete()
                     notif.status = NotificationStatus.RESPONDED.value
                     notif.processed_at = datetime.now(PARIS_TZ)
                     db.session.commit()
@@ -840,6 +855,10 @@ def delete_event(event_id):
     """), {'eid': event_id})
 
     db.session.execute(text("""
+        DELETE FROM annule WHERE utilisateur_id IN (SELECT id FROM utilisateur WHERE event_id = :eid);
+    """), {'eid': event_id})
+
+    db.session.execute(text("""
         DELETE FROM utilisateur WHERE event_id = :eid;
     """), {'eid': event_id})
 
@@ -982,7 +1001,7 @@ def run_check_expirations():
 
                     compteur = CompteurPlacesDisponibles.query.filter_by(event_id=event.id).first()
                     if not compteur:
-                        compteur = CompteurPlacesDisponibles(event_id=event.id, compteur=1)
+                        compteur = CompteurPlacesDisponibles(event_id=event.id, count=1)
                         db.session.add(compteur)
                     else:
                         compteur.count += 1
