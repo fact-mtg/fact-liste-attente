@@ -383,7 +383,7 @@ def cancel_request():
     if not event.active:
         return render_template("message.html", message=f"Les annulations et inscriptions sur la liste d'attente pour le {event.name} ont été fermées par l'organisateur.", prenom="")
     
-    email = request.form['email']
+    email = request.form['email'].lower()
 
     if CAPTCHA:
         # HONEYPOT : champ caché rempli → bot probable
@@ -432,7 +432,7 @@ def waitlist_request():
     if not event.active:
         return render_template("message.html", message=f"Les annulations et inscriptions sur la liste d'attente pour le {event.name} ont été fermées par l'organisateur.", prenom="")
 
-    email = request.form['email']
+    email = request.form['email'].lower()
 
     if CAPTCHA:
         # HONEYPOT : champ caché rempli → bot probable
@@ -532,7 +532,7 @@ def statut_direct():
         if not captcha_token or not verify_captcha(captcha_token):
             return render_template("message.html", message="Échec de la vérification CAPTCHA.")
     
-    email = request.form['email']
+    email = request.form['email'].lower()
     user = Utilisateur.query.filter_by(email=email, event_id=event.id).first()
     if not user:
         return render_template("message.html", prenom="", message=f"Aucun compte associé à {email}.")
@@ -575,7 +575,7 @@ def statut_direct():
 def confirm_action(token):
     try:
         data = token_serializer.loads(token, max_age=app.config['SECURITY_TOKEN_MAX_AGE'])
-        email = data['email']
+        email = data['email'].lower()
         event_id = data['event_id']
         action = data['action']
     except Exception:
