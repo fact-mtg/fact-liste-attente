@@ -544,7 +544,7 @@ def statut_direct():
         if user.paid:
             statut = f"Vous êtes actuellement inscrit au {event.name} et votre paiement a bien été reçu."
         else:
-            statut = f"Vous êtes inscrit au {event.name} mais vous n'avez pas encore effectué votre paiement. Celui-ci sera à effectuer sur place le jour de l'évènement."
+            statut = f"Vous êtes inscrit au {event.name}. Si vous n'avez pas effectué votre paiement en ligne, celui-ci sera à régler sur place le jour de l'évènement."
     elif attente:
         ahead = Attente.query.join(Utilisateur).filter(
             Attente.inscription_date < attente.inscription_date,
