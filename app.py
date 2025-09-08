@@ -1030,7 +1030,6 @@ def run_check_expirations():
             notify_next(event.id)
 
 
-@limiter.limit("2/minute")
 @app.route("/cron/check_expirations")
 def cron_check_expirations():
     token = request.args.get("token")
