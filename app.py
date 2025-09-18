@@ -37,7 +37,7 @@ PARIS_TZ = timezone("Europe/Paris")
 
 TOKEN_TIME = 60 * 60 * 24  # valable un jour
 WAITING_TIME = 60 * 5 if WAITING_TEST else 60 * 60 * 24 # seconds
-SHORT_WAITING_TIME = 60 * 60 * 24 if WAITING_TEST else 60 * 60 * 2
+SHORT_WAITING_TIME = 60 * 60 * 24 if WAITING_TEST else 60 * 60 * 6
 
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME")  
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")  
