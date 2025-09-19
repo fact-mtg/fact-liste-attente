@@ -277,7 +277,7 @@ def export_csv(event_id):
 
     # 1. Participants
     p_file = f"participants_{event.name}_{timestamp}.csv"
-    with open(os.path.join(EXPORT_DIR, p_file), "w", newline='', encoding="utf-8") as f:
+    with open(os.path.join(EXPORT_DIR, p_file), "w", newline='', encoding="utf-8-sig") as f:
         writer = csv.writer(f, delimiter=';')
         writer.writerow(["Email", "Prénom", "Nom", "Date"])
         for u, date in participants:
@@ -289,7 +289,7 @@ def export_csv(event_id):
 
     # 2. A faire payer
     np_file = f"a_faire_payer_{event.name}_{timestamp}.csv"
-    with open(os.path.join(EXPORT_DIR, np_file), "w", newline='', encoding="utf-8") as f:
+    with open(os.path.join(EXPORT_DIR, np_file), "w", newline='', encoding="utf-8-sig") as f:
         writer = csv.writer(f, delimiter=';')
         writer.writerow(["Email", "Prénom", "Nom", "Date"])
         for u, date in non_payes:
@@ -301,7 +301,7 @@ def export_csv(event_id):
 
     # 3. A rembourser
     pp_file = f"a_rembourser_{event.name}_{timestamp}.csv"
-    with open(os.path.join(EXPORT_DIR, pp_file), "w", newline='', encoding="utf-8") as f:
+    with open(os.path.join(EXPORT_DIR, pp_file), "w", newline='', encoding="utf-8-sig") as f:
         writer = csv.writer(f, delimiter=';')
         writer.writerow(["Email", "Prénom", "Nom", "Date"])
         for u, date in payes_non_participants:
